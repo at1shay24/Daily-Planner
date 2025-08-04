@@ -20,7 +20,7 @@ if submitted:
         "Task": task,
         "Priority": priority,
         "Due Date": due_date.strftime("%Y-%m-%d"),
-        "Note": note,
+        "Note": note.replace("\n", " ").strip(),
         "Status": "Pending",
         "Created": date.today().strftime("%Y-%m-%d")
     }
@@ -35,8 +35,11 @@ if submitted:
     st.success("✅ Task added!")
 
 
-if os.path.exists(TASK_FILE):
-    st.markdown("---")
-    st.subheader("📋 Your Tasks")
-    df = pd.read_csv(TASK_FILE)
-    st.dataframe(df)
+st.markdown("---")
+st.subheader("📋 Your Tasks")
+
+try:
+    tasks_df = pd.read_csv(TASK_FILE)
+    st.dataframe(tasks_df)
+except FileNotFoundError:
+    st.info("No tasks found. Add your first task above!")
