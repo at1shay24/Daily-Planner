@@ -39,15 +39,7 @@ if submitted:
         st.success("✅ Task added!")
 
 
-    if not os.path.exists(TASK_FILE):
-        df = pd.DataFrame([new_task])
-    else:
-        df = pd.read_csv(TASK_FILE)
-        df = pd.concat([df, pd.DataFrame([new_task])], ignore_index=True)
-
-    df.to_csv(TASK_FILE, index=False)
-    st.success("✅ Task added!")
-
+    
 
 st.markdown("---")
 st.subheader("📋 Your Tasks")
