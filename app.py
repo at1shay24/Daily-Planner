@@ -16,14 +16,28 @@ with st.form("task_form"):
     submitted = st.form_submit_button("Add Task")
 
 if submitted:
-    new_task = {
-        "Task": task,
-        "Priority": priority,
-        "Due Date": due_date.strftime("%Y-%m-%d"),
-        "Note": note.replace("\n", " ").strip(),
-        "Status": "Pending",
-        "Created": date.today().strftime("%Y-%m-%d")
-    }
+    # Input validation
+    if not task.strip():
+        st.error("❌ Task name cannot be empty.")
+    else:
+        new_task = {
+            "Task": task,
+            "Priority": priority,
+            "Due Date": due_date.strftime("%Y-%m-%d"),
+            "Note": note.replace("\n", " ").strip(),
+            "Status": "Pending",
+            "Created": date.today().strftime("%Y-%m-%d")
+        }
+        
+        if not os.path.exists(TASK_FILE):
+            df = pd.DataFrame([new_task])
+        else:
+            df = pd.read_csv(TASK_FILE)
+            df = pd.concat([df, pd.DataFrame([new_task])], ignore_index=True)
+
+        df.to_csv(TASK_FILE, index=False)
+        st.success("✅ Task added!")
+
 
     if not os.path.exists(TASK_FILE):
         df = pd.DataFrame([new_task])
