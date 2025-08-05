@@ -46,6 +46,24 @@ st.subheader("📋 Your Tasks")
 
 try:
     tasks_df = pd.read_csv(TASK_FILE)
-    st.dataframe(tasks_df)
+
+    if not tasks_df.empty:
+        for idx, row in tasks_df.iterrows():
+            col1, col2 = st.columns([8, 2])
+            with col1:
+                st.write(f"**{row['Task']}** — {row['Priority']} priority | Due: {row['Due Date']}")
+                st.write(f"📝 {row['Note']}")
+                st.write(f"📅 Created: {row['Created']} | 🏁 Status: {row['Status']}")
+            with col2:
+                if row['Status'] != "Completed":
+                    if st.button(f"✅ Done", key=f"done_{idx}"):
+                        tasks_df.at[idx, 'Status'] = 'Completed'
+                        tasks_df.to_csv(TASK_FILE, index=False)
+                        st.success(f"Task '{row['Task']}' marked as Completed!")
+                        st.rerun()
+    else:
+        st.info("No tasks found. Add your first task above!")
+
 except FileNotFoundError:
     st.info("No tasks found. Add your first task above!")
+
