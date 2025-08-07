@@ -7,7 +7,7 @@ TASK_FILE = "tasks.csv"
 
 st.title("📝 Daily Planner & Task Logger")
 
-
+# ---------- Task Form ----------
 with st.form("task_form"):
     task = st.text_input("Task")
     priority = st.selectbox("Priority", ["Low", "Medium", "High"])
@@ -16,7 +16,6 @@ with st.form("task_form"):
     submitted = st.form_submit_button("Add Task")
 
 if submitted:
-    # Input validation
     if not task.strip():
         st.error("❌ Task name cannot be empty.")
     else:
@@ -28,7 +27,7 @@ if submitted:
             "Status": "Pending",
             "Created": date.today().strftime("%Y-%m-%d")
         }
-        
+
         if not os.path.exists(TASK_FILE):
             df = pd.DataFrame([new_task])
         else:
@@ -38,38 +37,42 @@ if submitted:
         df.to_csv(TASK_FILE, index=False)
         st.success("✅ Task added!")
 
-
-    
-
+# ---------- Task Viewer ----------
 st.markdown("---")
 st.subheader("📋 Your Tasks")
 
 try:
     tasks_df = pd.read_csv(TASK_FILE)
 
-    pending_df = tasks_df[tasks_df["Status"] == "Pending"]
-    completed_df = tasks_df[tasks_df["Status"] == "Completed"]
+    # 🔍 Filters
+    st.markdown("### 🔍 Filter Tasks")
+    status_filter = st.selectbox("Filter by Status", options=["All", "Pending", "Completed"])
+    priority_filter = st.multiselect("Filter by Priority", options=["Low", "Medium", "High"], default=["Low", "Medium", "High"])
 
-    if not pending_df.empty:
-        st.markdown("### 🟡 Pending Tasks")
-        for idx, row in pending_df.iterrows():
+    filtered_df = tasks_df.copy()
+
+    if status_filter != "All":
+        filtered_df = filtered_df[filtered_df["Status"] == status_filter]
+    if priority_filter:
+        filtered_df = filtered_df[filtered_df["Priority"].isin(priority_filter)]
+
+    if not filtered_df.empty:
+        st.markdown("### 📄 Filtered Tasks")
+        for idx, row in filtered_df.iterrows():
             col1, col2 = st.columns([8, 2])
             with col1:
                 st.write(f"**{row['Task']}** — {row['Priority']} priority | Due: {row['Due Date']}")
                 st.write(f"📝 {row['Note']}")
                 st.write(f"📅 Created: {row['Created']} | 🏁 Status: {row['Status']}")
             with col2:
-                if st.button(f"✅ Done", key=f"done_{idx}"):
-                    tasks_df.at[idx, 'Status'] = 'Completed'
-                    tasks_df.to_csv(TASK_FILE, index=False)
-                    st.success(f"Task '{row['Task']}' marked as Completed!")
-                    st.rerun()
+                if row['Status'] == "Pending":
+                    if st.button(f"✅ Done", key=f"done_{idx}"):
+                        tasks_df.at[idx, 'Status'] = 'Completed'
+                        tasks_df.to_csv(TASK_FILE, index=False)
+                        st.success(f"Task '{row['Task']}' marked as Completed!")
+                        st.rerun()
     else:
-        st.info("No pending tasks left. Nice work!")
-
-    if not completed_df.empty:
-        st.markdown("### ✅ Completed Tasks")
-        st.dataframe(completed_df)
+        st.info("No tasks match the selected filters.")
 
 except FileNotFoundError:
     st.info("No tasks found. Add your first task above!")
