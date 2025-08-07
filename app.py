@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 import os
 
 TASK_FILE = "tasks.csv"
@@ -61,16 +61,30 @@ try:
         for idx, row in filtered_df.iterrows():
             col1, col2 = st.columns([8, 2])
             with col1:
-                st.write(f"**{row['Task']}** — {row['Priority']} priority | Due: {row['Due Date']}")
+                due_date_obj = datetime.strptime(row['Due Date'], "%Y-%m-%d").date()
+                today = date.today()
+
+                if due_date_obj < today and row['Status'] == 'Pending':
+                    st.markdown(f"<p style='color:red; font-weight:bold;'>**{row['Task']}** — Overdue!</p>", unsafe_allow_html=True)
+                else:
+                    st.write(f"**{row['Task']}** — {row['Priority']} priority | Due: {row['Due Date']}")
                 st.write(f"📝 {row['Note']}")
                 st.write(f"📅 Created: {row['Created']} | 🏁 Status: {row['Status']}")
+
             with col2:
                 if row['Status'] == "Pending":
-                    if st.button(f"✅ Done", key=f"done_{idx}"):
+                    if st.button("✅ Done", key=f"done_{idx}"):
                         tasks_df.at[idx, 'Status'] = 'Completed'
                         tasks_df.to_csv(TASK_FILE, index=False)
                         st.success(f"Task '{row['Task']}' marked as Completed!")
                         st.rerun()
+
+                if st.button("🗑️ Delete", key=f"delete_{idx}"):
+                    tasks_df = tasks_df.drop(index=idx).reset_index(drop=True)
+                    tasks_df.to_csv(TASK_FILE, index=False)
+                    st.success(f"Task '{row['Task']}' deleted.")
+                    st.rerun()
+
     else:
         st.info("No tasks match the selected filters.")
 
