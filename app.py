@@ -70,7 +70,6 @@ try:
                     st.write(f"**{row['Task']}** — {row['Priority']} priority | Due: {row['Due Date']}")
                 st.write(f"📝 {row['Note']}")
                 st.write(f"📅 Created: {row['Created']} | 🏁 Status: {row['Status']}")
-
             with col2:
                 if row['Status'] == "Pending":
                     if st.button("✅ Done", key=f"done_{idx}"):
@@ -85,6 +84,16 @@ try:
                     st.success(f"Task '{row['Task']}' deleted.")
                     st.rerun()
 
+        st.markdown("---")
+    
+    # 🔥 Delete All Completed Tasks Section
+    st.markdown("### 🧹 Bulk Actions")
+    if not tasks_df[tasks_df["Status"] == "Completed"].empty:
+        if st.button("🗑️ Delete All Completed Tasks"):
+            tasks_df = tasks_df[tasks_df["Status"] != "Completed"]
+            tasks_df.to_csv(TASK_FILE, index=False)
+            st.success("✅ All completed tasks have been deleted!")
+            st.rerun()
     else:
         st.info("No tasks match the selected filters.")
 
