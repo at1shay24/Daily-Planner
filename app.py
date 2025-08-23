@@ -5,15 +5,19 @@ import os
 
 TASK_FILE = "tasks.csv"
 
+# Page Config
+st.set_page_config(page_title="Daily Planner", page_icon="📝", layout="centered")
 st.title("📝 Daily Planner & Task Logger")
 
 # ---------- Task Form ----------
+st.markdown("### ➕ Add a New Task")
+
 with st.form("task_form"):
-    task = st.text_input("Task")
-    priority = st.selectbox("Priority", ["Low", "Medium", "High"])
-    due_date = st.date_input("Due Date", value=date.today())
-    note = st.text_area("Notes")
-    submitted = st.form_submit_button("Add Task")
+    task = st.text_input("✏️ Task")
+    priority = st.selectbox("🔥 Priority", ["Low", "Medium", "High"])
+    due_date = st.date_input("📅 Due Date", value=date.today())
+    note = st.text_area("📝 Notes")
+    submitted = st.form_submit_button("➕ Add Task", use_container_width=True)
 
 if submitted:
     if not task.strip():
@@ -45,9 +49,9 @@ try:
     tasks_df = pd.read_csv(TASK_FILE)
 
     # 🔍 Filters
-    st.markdown("### 🔍 Filter Tasks")
-    status_filter = st.selectbox("Filter by Status", options=["All", "Pending", "Completed"])
-    priority_filter = st.multiselect("Filter by Priority", options=["Low", "Medium", "High"], default=["Low", "Medium", "High"])
+    with st.expander("🔍 Filter Tasks", expanded=True):
+        status_filter = st.selectbox("Filter by Status", options=["All", "Pending", "Completed"])
+        priority_filter = st.multiselect("Filter by Priority", options=["Low", "Medium", "High"], default=["Low", "Medium", "High"])
 
     filtered_df = tasks_df.copy()
 
@@ -59,26 +63,28 @@ try:
     if not filtered_df.empty:
         st.markdown("### 📄 Filtered Tasks")
         for idx, row in filtered_df.iterrows():
-            col1, col2 = st.columns([8, 2])
+            col1, col2, col3 = st.columns([6, 2, 2])
             with col1:
                 due_date_obj = datetime.strptime(row['Due Date'], "%Y-%m-%d").date()
                 today = date.today()
 
                 if due_date_obj < today and row['Status'] == 'Pending':
-                    st.markdown(f"<p style='color:red; font-weight:bold;'>**{row['Task']}** — Overdue!</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='color:red; font-weight:bold;'>⚠️ {row['Task']} — Overdue!</p>", unsafe_allow_html=True)
                 else:
-                    st.write(f"**{row['Task']}** — {row['Priority']} priority | Due: {row['Due Date']}")
-                st.write(f"📝 {row['Note']}")
-                st.write(f"📅 Created: {row['Created']} | 🏁 Status: {row['Status']}")
+                    st.write(f"**{row['Task']}** — {row['Priority']} Priority | Due: {row['Due Date']}")
+                st.caption(f"📝 {row['Note']}")
+                st.caption(f"📅 Created: {row['Created']} | 🏁 Status: {row['Status']}")
+
             with col2:
                 if row['Status'] == "Pending":
-                    if st.button("✅ Done", key=f"done_{idx}"):
+                    if st.button("✅ Complete", key=f"done_{idx}", use_container_width=True):
                         tasks_df.at[idx, 'Status'] = 'Completed'
                         tasks_df.to_csv(TASK_FILE, index=False)
                         st.success(f"Task '{row['Task']}' marked as Completed!")
                         st.rerun()
 
-                if st.button("🗑️ Delete", key=f"delete_{idx}"):
+            with col3:
+                if st.button("🗑️ Delete", key=f"delete_{idx}", use_container_width=True):
                     tasks_df = tasks_df.drop(index=idx).reset_index(drop=True)
                     tasks_df.to_csv(TASK_FILE, index=False)
                     st.success(f"Task '{row['Task']}' deleted.")
@@ -89,7 +95,7 @@ try:
     # 🔥 Delete All Completed Tasks Section
     st.markdown("### 🧹 Bulk Actions")
     if not tasks_df[tasks_df["Status"] == "Completed"].empty:
-        if st.button("🗑️ Delete All Completed Tasks"):
+        if st.button("🗑️ Delete All Completed Tasks", use_container_width=True):
             tasks_df = tasks_df[tasks_df["Status"] != "Completed"]
             tasks_df.to_csv(TASK_FILE, index=False)
             st.success("✅ All completed tasks have been deleted!")
