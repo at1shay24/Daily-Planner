@@ -47,28 +47,48 @@ if submitted:
         df.to_csv(TASK_FILE, index=False)
         st.success("Task added!")
 
-# ---------- Task Viewer ----------
-st.markdown("---")
-st.subheader("Your Tasks")
-
+# ---------- Helper Functions ----------
 def calculate_streak(df):
     if "Completed_TS" not in df.columns:
         df["Completed_TS"] = ""
     streak = 0
-    today = date.today()
+    today = pd.Timestamp(date.today())
     df_completed = df[df['Status'] == 'Completed'].copy()
     if df_completed.empty:
         return 0
-    df_completed['Completed_Date'] = pd.to_datetime(df_completed['Completed_TS'], errors='coerce').dt.date
+    df_completed['Completed_Date'] = pd.to_datetime(df_completed['Completed_TS'], errors='coerce')
     df_completed = df_completed.dropna(subset=['Completed_Date'])
     df_completed = df_completed.sort_values('Completed_Date', ascending=False)
 
     for comp_date in df_completed['Completed_Date']:
-        if (today - comp_date).days == streak:
+        if (today - comp_date.normalize()).days == streak:
             streak += 1
         else:
             break
     return streak
+
+def last_month_summary(df):
+    today = pd.Timestamp(date.today())
+    month_ago = today - pd.Timedelta(days=30)
+    
+    df_completed = df[df['Status'] == 'Completed'].copy()
+    df_completed['Completed_Date'] = pd.to_datetime(df_completed['Completed_TS'], errors='coerce')
+    df_completed = df_completed.dropna(subset=['Completed_Date'])
+    
+    tasks_done = df_completed[(df_completed['Completed_Date'] >= month_ago) & 
+                              (df_completed['Completed_Date'] <= today)].shape[0]
+    
+    df_due_last_month = df.copy()
+    df_due_last_month['Due_Date_TS'] = pd.to_datetime(df_due_last_month['Due Date'], errors='coerce')
+    tasks_total = df_due_last_month[(df_due_last_month['Due_Date_TS'] >= month_ago) & 
+                                    (df_due_last_month['Due_Date_TS'] <= today)].shape[0]
+    
+    tasks_missed = tasks_total - tasks_done
+    return tasks_done, tasks_missed
+
+# ---------- Task Viewer ----------
+st.markdown("---")
+st.subheader("Your Tasks")
 
 try:
     tasks_df = pd.read_csv(TASK_FILE)
@@ -78,6 +98,10 @@ try:
 
     # Show current streak
     st.subheader(f"Current Streak: {calculate_streak(tasks_df)} days")
+
+    # Last month summary
+    done, missed = last_month_summary(tasks_df)
+    st.info(f"Tasks done last 30 days: {done} | Tasks missed last 30 days: {missed}")
 
     # Filters
     with st.expander("Filter Tasks", expanded=True):
@@ -98,8 +122,8 @@ try:
             # Task display
             with col1:
                 due_date_obj = datetime.strptime(row['Due Date'], "%Y-%m-%d").date()
-                today = date.today()
-                if due_date_obj < today and row['Status'] == 'Pending':
+                today_date = date.today()
+                if due_date_obj < today_date and row['Status'] == 'Pending':
                     st.markdown(f"<p style='color:red; font-weight:bold;'>{row['Task']} — Overdue!</p>", unsafe_allow_html=True)
                 else:
                     st.write(f"{row['Task']} — {row['Priority']} Priority | Due: {row['Due Date']}")
