@@ -32,13 +32,16 @@ if submitted:
             "Due Date": due_date.strftime("%Y-%m-%d"),
             "Note": note.replace("\n", " ").strip(),
             "Status": "Pending",
-            "Created": date.today().strftime("%Y-%m-%d")
+            "Created": date.today().strftime("%Y-%m-%d"),
+            "Completed_TS": ""
         }
 
         if not os.path.exists(TASK_FILE):
             df = pd.DataFrame([new_task])
         else:
             df = pd.read_csv(TASK_FILE)
+            if "Completed_TS" not in df.columns:
+                df["Completed_TS"] = ""
             df = pd.concat([df, pd.DataFrame([new_task])], ignore_index=True)
 
         df.to_csv(TASK_FILE, index=False)
@@ -46,36 +49,35 @@ if submitted:
 
 # ---------- Task Viewer ----------
 st.markdown("---")
+st.subheader("Your Tasks")
+
+def calculate_streak(df):
+    if "Completed_TS" not in df.columns:
+        df["Completed_TS"] = ""
+    streak = 0
+    today = date.today()
+    df_completed = df[df['Status'] == 'Completed'].copy()
+    if df_completed.empty:
+        return 0
+    df_completed['Completed_Date'] = pd.to_datetime(df_completed['Completed_TS'], errors='coerce').dt.date
+    df_completed = df_completed.dropna(subset=['Completed_Date'])
+    df_completed = df_completed.sort_values('Completed_Date', ascending=False)
+
+    for comp_date in df_completed['Completed_Date']:
+        if (today - comp_date).days == streak:
+            streak += 1
+        else:
+            break
+    return streak
 
 try:
     tasks_df = pd.read_csv(TASK_FILE)
+    if "Completed_TS" not in tasks_df.columns:
+        tasks_df["Completed_TS"] = ""
+        tasks_df.to_csv(TASK_FILE, index=False)
 
-    # ---------- Streak Calculation ----------
-    if not tasks_df.empty:
-        completed_on_time = tasks_df[
-            (tasks_df["Status"] == "Completed") &
-            (pd.to_datetime(tasks_df["Created"]) <= pd.to_datetime(tasks_df["Due Date"]))
-        ].copy()
-
-        if not completed_on_time.empty:
-            completed_on_time["Created"] = pd.to_datetime(completed_on_time["Created"])
-            completed_on_time = completed_on_time.sort_values(by="Created")
-
-            streak = 1
-            max_streak = 1
-            dates = completed_on_time["Created"].dt.date.tolist()
-            for i in range(1, len(dates)):
-                if (dates[i] - dates[i - 1]).days == 1:
-                    streak += 1
-                    max_streak = max(max_streak, streak)
-                else:
-                    streak = 1
-
-            st.markdown(f"### Current Streak: {max_streak} day(s) of on-time task completion")
-        else:
-            st.markdown("### Current Streak: 0 days (get to work!)")
-    else:
-        st.markdown("### Current Streak: 0 days (get to work!)")
+    # Show current streak
+    st.subheader(f"Current Streak: {calculate_streak(tasks_df)} days")
 
     # Filters
     with st.expander("Filter Tasks", expanded=True):
@@ -89,10 +91,10 @@ try:
         filtered_df = filtered_df[filtered_df["Priority"].isin(priority_filter)]
 
     if not filtered_df.empty:
-        st.markdown("### Filtered Tasks")
+        st.markdown("Filtered Tasks")
         for idx, row in filtered_df.iterrows():
             col1, col2, col3, col4 = st.columns([6, 2, 2, 2])
-
+            
             # Task display
             with col1:
                 due_date_obj = datetime.strptime(row['Due Date'], "%Y-%m-%d").date()
@@ -100,8 +102,8 @@ try:
                 if due_date_obj < today and row['Status'] == 'Pending':
                     st.markdown(f"<p style='color:red; font-weight:bold;'>{row['Task']} — Overdue!</p>", unsafe_allow_html=True)
                 else:
-                    st.write(f"**{row['Task']}** — {row['Priority']} Priority | Due: {row['Due Date']}")
-                st.caption(f"Notes: {row['Note']}")
+                    st.write(f"{row['Task']} — {row['Priority']} Priority | Due: {row['Due Date']}")
+                st.caption(f"{row['Note']}")
                 st.caption(f"Created: {row['Created']} | Status: {row['Status']}")
 
             # Complete button
@@ -109,7 +111,9 @@ try:
                 if row['Status'] == "Pending":
                     if st.button("Complete", key=f"done_{idx}", use_container_width=True):
                         tasks_df.at[idx, 'Status'] = 'Completed'
+                        tasks_df.at[idx, 'Completed_TS'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         tasks_df.to_csv(TASK_FILE, index=False)
+                        st.success(f"Task '{row['Task']}' marked as Completed!")
                         st.session_state["edit_idx"] = None
                         st.experimental_rerun()
 
@@ -123,6 +127,7 @@ try:
                 if st.button("Delete", key=f"delete_{idx}", use_container_width=True):
                     tasks_df = tasks_df.drop(index=idx).reset_index(drop=True)
                     tasks_df.to_csv(TASK_FILE, index=False)
+                    st.success(f"Task '{row['Task']}' deleted.")
                     st.session_state["edit_idx"] = None
                     st.experimental_rerun()
 
@@ -143,17 +148,19 @@ try:
                         tasks_df.at[idx, "Due Date"] = new_due_date.strftime("%Y-%m-%d")
                         tasks_df.at[idx, "Note"] = new_note.replace("\n", " ").strip()
                         tasks_df.to_csv(TASK_FILE, index=False)
+                        st.success(f"Task '{new_task}' updated!")
                         st.session_state["edit_idx"] = None
                         st.experimental_rerun()
 
         st.markdown("---")
 
     # Bulk delete completed tasks
-    st.markdown("### Bulk Actions")
+    st.markdown("Bulk Actions")
     if not tasks_df[tasks_df["Status"] == "Completed"].empty:
         if st.button("Delete All Completed Tasks", use_container_width=True):
             tasks_df = tasks_df[tasks_df["Status"] != "Completed"]
             tasks_df.to_csv(TASK_FILE, index=False)
+            st.success("All completed tasks have been deleted!")
             st.session_state["edit_idx"] = None
             st.experimental_rerun()
     else:
